@@ -34,6 +34,7 @@
 #include <ctime>
 #include <limits>
 #include <sstream>
+#include <cstring>
 
 namespace {
 const int CLEAR_PLAYER_TIME = 5;
@@ -2914,7 +2915,31 @@ KeepawayRef::KeepawayRef( Stadium & stadium )
       M_time( 0 ),
       M_take_time( 0 )
 {
+    // setup the socket listening to the start signal.
+    socket_start = rcss::net::UDPSocket();
+    socket_start.setNonBlocking(false);
+    socket_start.bind( rcss::net::Addr( rcss::net::Addr::PortType(7000) ) );
 
+    // setup the socket to send the reward signal.
+    socket_reward = rcss::net::UDPSocket();
+    
+    // I'm in WSL2 and I need to get the windows host IP
+    // (yes, this is terrible, but I don't know better)
+    std::ifstream infile("/etc/resolv.conf");
+    std::string key, val, line;
+    while (std::getline(infile, line))
+    {
+        std::istringstream iss(line);
+        if (!(iss >> key >> val)) { break; } // error
+
+        if (key == "nameserver"){ break; } // we're done
+    }
+
+    hostAddress = rcss::net::Addr( rcss::net::Addr::PortType(7001) );
+    hostAddress.setHost(val);
+
+    last_k0 = -1;
+    t_hold = 0;
 }
 
 void
@@ -2941,6 +2966,13 @@ KeepawayRef::analyse()
             M_stadium.sendRefereeAudio( trainingMsg );
             resetField();
         }
+        // ORLA: 10s hold timeout.
+        else if (ServerParam::instance().episodeTimeout() && t_hold > 100 ) //if no passes are made in a long time
+        {
+            logEpisode( "w" ); //watchdog timeout
+            M_stadium.sendRefereeAudio( trainingMsg );
+            resetField();
+        }
         else
         {
             bool keeper_poss = false;
@@ -2957,6 +2989,13 @@ KeepawayRef::analyse()
                     if ( p->side() == LEFT )
                     {
                         keeper_poss = true;
+                        if (last_k0 == p->id())
+                        {
+                            ++t_hold;
+                        } else {
+                            last_k0 = p->id();
+                            t_hold = 0;
+                        }
                     }
                     else if ( p->side() == RIGHT )
                     {
@@ -3028,6 +3067,18 @@ KeepawayRef::logHeader()
 void
 KeepawayRef::logEpisode( const char * end_cond )
 {
+
+    float reward = M_stadium.time() - M_time;
+
+    if (*end_cond == 'w') reward += 200; // penalisation for reaching timeout
+
+    std::string reward_str = std::to_string(reward);
+
+    socket_reward.send( reward_str.c_str(),
+                        reward_str.length(),
+                        hostAddress 
+    );
+
     Logger::instance().writeKeepawayLog( M_stadium, M_episode, M_time, end_cond );
 
     ++M_episode;
@@ -3037,6 +3088,21 @@ KeepawayRef::logEpisode( const char * end_cond )
 void
 KeepawayRef::resetField()
 {
+
+    int len = 8;
+    char msg[len];
+    // ORLA: enable/disable start control via UDP.
+    
+    std::string decoded = "";
+    while ( decoded != "start" && ServerParam::instance().startUDP() ){
+        std::cout << "\nWaiting to reset field:" << std::endl;
+        auto rec = socket_start.recv(&msg[0], len);
+        char out[rec+1];
+        std::memcpy(&out, &msg, rec);
+        out[rec] = '\0';
+        decoded = std::string(out);
+    }
+
     int keeper_pos = irand( M_keepers );
     //int keeper_pos = boost::uniform_smallint<>( 0, M_keepers - 1 )( rcss::random::DefaultRNG::instance() );
 
@@ -3076,14 +3142,50 @@ KeepawayRef::resetField()
 
             p->place( PVector( x, y ) );
         }
-    }
+    }    
+    
+    // Randomize the position of the ball (at least 3 keepers are assumed, 
+    // consistent with the original keepaway implementation).
+    double ballX;
+    double ballY;
 
-    M_stadium.placeBall( NEUTRAL,
-                         PVector( -ServerParam::instance().keepAwayLength() * 0.5 + 4.0,
-                                  -ServerParam::instance().keepAwayWidth() * 0.5 + 4.0 ) );
+    KeepawayRef::ballInitialPosition(ballX, ballY);
+
+    M_stadium.placeBall( NEUTRAL, PVector(ballX, ballY) );
     M_stadium.recoveryPlayers();
 
     M_take_time = 0;
+    t_hold = 0;
+}
+
+void
+KeepawayRef::ballInitialPosition( double & ballX, double & ballY )
+{
+    const double L = ServerParam::instance().keepAwayLength();
+    const double W = ServerParam::instance().keepAwayWidth();
+
+    const int quadrant = irand(3);
+    const int m = 4; // margin
+
+    // Randomly sample a position in the 1st, 2nd or 4th quadrant, leaving a safety margin of 4 units.
+    // This approach easily allows for uniform exploration of all quadrants
+    switch(quadrant){
+    case 0: // quadrant 1
+        ballX = drand(0, L/2 - m);
+        ballY = drand(-W/2 + m, 0);
+        break;
+    case 1: // quadrant 2
+        ballX = drand(-L/2 + m, 0);
+        ballY = drand(-W/2 + m, -m);
+        break;
+    case 2: // quadrant 4
+        ballX = drand(m, L/2 - m);
+        ballY = drand(0, W/2 - m);
+        break;
+    default:
+        std::cout << "Error: unkown quadrant: " << quadrant << std::endl;
+        break;
+    }
 }
 
 
