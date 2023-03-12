@@ -381,6 +381,10 @@ constexpr double MIN_CATCH_ANGLE = -90.0;
 const double ServerParam::LONG_KICK_POWER_FACTOR = 2.0;
 const int ServerParam::LONG_KICK_DELAY = 2;
 
+// ORLA
+const bool ServerParam::START_UDP = false;
+const bool ServerParam::EPISODE_TIMEOUT = false;
+
 ServerParam &
 ServerParam::instance()
 {
@@ -949,6 +953,11 @@ ServerParam::addParams()
     // addParam( "long_kick_power_factor", M_long_kick_power_factor, "", 999 );
     // addParam( "long_kick_delay", M_long_kick_delay, "", 999 );
 
+    // ORLA
+    addParam( "start_udp", M_start_udp, "", 99 );
+    addParam( "episode_timeout", M_episode_timeout, "", 99 );
+
+
 
 }
 
@@ -1454,6 +1463,12 @@ ServerParam::setDefaults()
     // XXX
     M_long_kick_power_factor = LONG_KICK_POWER_FACTOR;
     M_long_kick_delay = LONG_KICK_DELAY;
+
+    // ORLA
+    
+    M_start_udp = START_UDP;
+    M_episode_timeout = EPISODE_TIMEOUT;
+
 
     setHalfTime( HALF_TIME );
     setExtraHalfTime( EXTRA_HALF_TIME );

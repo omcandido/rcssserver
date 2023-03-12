@@ -346,6 +346,10 @@ private:
     static const double LONG_KICK_POWER_FACTOR;
     static const int LONG_KICK_DELAY;
 
+    // ORLA
+    static const bool START_UDP;
+    static const bool EPISODE_TIMEOUT;
+
     double M_goal_width; /* goal width */
     double M_inertia_moment; /* intertia moment for turn */
     double M_player_size; /* player size */
@@ -625,6 +629,10 @@ private:
     // XXX
     double M_long_kick_power_factor;
     int M_long_kick_delay;
+
+    // ORLA
+    bool M_start_udp; // does it wait for a "start" message via UDP socket?
+    bool M_episode_timeout; // does the episode end if the keepers do not pass the ball in a long time?
 
 private:
 
@@ -983,6 +991,9 @@ public:
     // XXX
     double longKickPowerFactor() const { return M_long_kick_power_factor; }
     int longKickDelay() const { return M_long_kick_delay; }
+
+    bool startUDP() const { return M_start_udp; }
+    bool episodeTimeout() const { return M_episode_timeout; }
 
 };
 

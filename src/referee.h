@@ -28,9 +28,16 @@
 
 #include "types.h"
 #include "object.h"
+#include "rcss/net/udpsocket.hpp"
+#include "rcss/net/addr.hpp"
 
 #include <set>
 #include <vector>
+
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <cstring>
 
 class Stadium;
 class Player;
@@ -804,6 +811,11 @@ private:
     int M_keepers, M_takers;
     int M_time;
     int M_take_time;
+    int last_k0;
+    int t_hold;
+    rcss::net::UDPSocket socket_start;
+    rcss::net::UDPSocket socket_reward;
+    rcss::net::Addr hostAddress;
 public:
     KeepawayRef( Stadium & stadium );
 
@@ -848,6 +860,8 @@ private:
     void logEpisode( const char *endCond );
 
     void resetField();
+
+    void ballInitialPosition( double & ballX, double & ballY );
 };
 
 /*--------------------------------------------------------*/
