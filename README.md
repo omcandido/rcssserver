@@ -3,8 +3,8 @@
 ORLA (Online Reinforcement Learning Argumentation) has been tested on Takeaway (the variant of keepaway in which only the takers learn). ORLA runs on is implemented in Python and communicates with rcssserver via sockets. Our implementation assumes that rcssserver is running on WSL2 and ORLA is running on a Windows host (specifically, the Linux distro is Ubuntu-16.04 and the host is Windows 10). This fork implements the following:
 - Randomly initialize the ball to promote different configurations (it was observer that RL agents could easily exploit the dynamics of the game if the ball was always initialized at the same spot, leading to the keepers never even achieving to pass the ball once).
 - Penalization of 20s and finalization of the match if the same keeper has kept possession of the ball for at least 10s. 
-- Socket on port 7000 to receive the "start" signal from ORLA to syncronously start a new match.
-- Socket on port 7001 to send the reward signal (the duration of the match) to ORLA.
+- UDP Socket on port 7000 to receive the "start" signal from ORLA to syncronously start a new match.
+- UDP Socket on port 7001 to send the reward signal (the duration of the match) to ORLA.
 _____
 ### ORIGINAL README:
 # RoboCup Soccer Simulator Server
